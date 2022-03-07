@@ -9,7 +9,7 @@ const calcAngle = (v1, v2, s) => {
 const getBall = (pos, s) => {
     return {
         pos,
-        acc: s.createVector(0, .1),
+        acc: s.createVector(0, 0),
         vel: s.createVector(0, 0),
         wasLeft: false,
         wasRight: false,
@@ -18,8 +18,11 @@ const getBall = (pos, s) => {
 }
 
 export class Agent {
-    constructor(sketch, neuralNetwork) {
-        this.nn = neuralNetwork
+    constructor(sketch, neuralNetworkLeft, neuralNetworkRight) {
+        this.nnLeft = neuralNetworkLeft
+        this.nnLeft.score = 0
+        this.nnRight = neuralNetworkRight
+        this.nnRight.score = 0
         this.handLeft = sketch.createVector(100, height - 150)
         this.handRight = sketch.createVector(width - 100, height - 150)
         this.handRadius = 100
@@ -42,6 +45,10 @@ export class Agent {
         this.balls.push(getBall(pos3, s))
     }
 
+    score() {
+        return this.nnLeft.score + this.nnRight.score
+    }
+
     update(sketch) {
         if (this.ballCollision) return
 
@@ -52,44 +59,45 @@ export class Agent {
                 return
             }
 
-            ball.vel.add(ball.acc)
-            ball.pos.add(ball.vel)
-
             const ballFalls = ball.vel.y > 0
 
-            const accRangeX = 1.5
-            const accRangeY = -2.5
+            const accRangeX = 4.5
+            const accRangeY = -5.5
 
             const ballVelMag = sketch.map(ball.vel.mag(), 0, 5, 0, 1)
+
+            ball.acc = sketch.createVector(0, 0)
 
             const distLeft = ball.pos.dist(this.handLeft)
             if (distLeft < this.handRadius / 2) {
 
-                const ballTransformed = ball.pos.copy().sub(this.handLeft)
+                //const ballTransformed = ball.pos.copy().sub(this.handLeft)
                 // method 1
                 //const mappedX = sketch.map(ballTransformed.x, 0, this.handRadius, 0, 1)
                 //const mappedY = sketch.map(ballTransformed.y, 0, this.handRadius, 0, 1)
                 //var output = this.nn.activate([mappedX, mappedY, 0, ballFalls, ballVelMag]);
 
                 // methode 2
-                const angle = calcAngle(ballTransformed, { x: 0, y: 0 }, sketch)
-                const mappedAngle = sketch.map(angle, -180, 180, 0, 1)
-                const dist = ballTransformed.dist(sketch.createVector(0, 0))
-                const mappedDist = sketch.map(dist, 0, this.handRadius / 2, 0, 1)
-                var output = this.nn.activate([mappedAngle, mappedDist, 0, ballFalls, ballVelMag]);
+                //const angle = calcAngle(ballTransformed, { x: 0, y: 0 }, sketch)
+                //const mappedAngle = sketch.map(angle, -180, 180, 0, 1)
+                //const dist = ballTransformed.dist(sketch.createVector(0, 0))
+                //const mappedDist = sketch.map(dist, 0, this.handRadius / 2, 0, 1)
+                //var output = this.nnLeft.activate([mappedAngle, mappedDist, ballFalls, ballVelMag]);
+
+                const ballVel = ball.vel.normalize()
+                const velX = sketch.map(ballVel.x, -1, 1, 0, 1)
+                const velY = sketch.map(ballVel.y, -1, 1, 0, 1)
+                var output = this.nnLeft.activate([velX, velY]);
 
                 const accX = sketch.map(output[0], 0, 1, 0, accRangeX)
                 const accY = sketch.map(output[1], 0, 1, 0, accRangeY)
 
-                if (output[2] > 0.5) {
-                    ball.vel.add(sketch.createVector(accX, accY))
-                } else {
-                    ball.pos.add(sketch.createVector(accX, accY))
-                }
+
+                ball.acc.add(sketch.createVector(accX, accY))
 
                 ball.wasLeft = true
                 if (ball.wasRight) {
-                    this.nn.score += 1
+                    this.nnRight.score += 1
                     ball.wasRight = false
                 }
             }
@@ -97,37 +105,41 @@ export class Agent {
             const distRight = ball.pos.dist(this.handRight)
             if (distRight < this.handRadius / 2) {
 
-                const ballTransformed = ball.pos.copy().sub(this.handRight)
+                //const ballTransformed = ball.pos.copy().sub(this.handRight)
                 // method 1
                 //const mappedX = sketch.map(ballTransformed.x, 0, this.handRadius, 0, 1)
                 //const mappedY = sketch.map(ballTransformed.y, 0, this.handRadius, 0, 1)
                 //var output = this.nn.activate([mappedX, mappedY, 1, ballFalls, ballVelMag]);
 
                 // methode 2
-                const angle = calcAngle(ballTransformed, { x: 0, y: 0 }, sketch)
-                const mappedAngle = sketch.map(angle, -180, 180, 0, 1)
-                const dist = ballTransformed.dist(sketch.createVector(0, 0))
-                const mappedDist = sketch.map(dist, 0, this.handRadius / 2, 0, 1)
-                var output = this.nn.activate([mappedAngle, mappedDist, 1, ballFalls, ballVelMag]);
+                //const angle = calcAngle(ballTransformed, { x: 0, y: 0 }, sketch)
+                //const mappedAngle = sketch.map(angle, -180, 180, 0, 1)
+                //const dist = ballTransformed.dist(sketch.createVector(0, 0))
+                //const mappedDist = sketch.map(dist, 0, this.handRadius / 2, 0, 1)
+                //var output = this.nnRight.activate([mappedAngle, mappedDist, ballFalls, ballVelMag]);
+
+                const ballVel = ball.vel.normalize()
+                const velX = sketch.map(ballVel.x, -1, 1, 0, 1)
+                const velY = sketch.map(ballVel.y, -1, 1, 0, 1)
+                var output = this.nnRight.activate([velX, velY]);
 
                 const accX = sketch.map(output[0], 0, 1, 0, -accRangeX)
                 const accY = sketch.map(output[1], 0, 1, 0, accRangeY)
 
-                if (output[2] > 0.5) {
-                    ball.vel.add(sketch.createVector(accX, accY))
-                } else {
-                    ball.pos.add(sketch.createVector(accX, accY))
-                }
-
-
+                ball.acc.add(sketch.createVector(accX, accY))
 
                 ball.wasRight = true
                 if (ball.wasLeft) {
-                    this.nn.score += 1
+                    this.nnLeft.score += 1
                     ball.wasLeft = false
                 }
             }
+
+            ball.acc.add(sketch.createVector(0, 0.1))
+            ball.vel.add(ball.acc)
+            ball.pos.add(ball.vel)
         })
+
 
         this.balls.forEach(b1 => {
             this.balls.forEach(b2 => {

@@ -27,7 +27,7 @@ export default function sketch(s) {
     backgroundColor = s.color(s.random(255), s.random(255), s.random(255));
   };
 
-  const hidden = 5000
+  const hidden = 1000
 
   s.draw = () => {
     s.background(120, 120, 120, 30);
@@ -52,7 +52,7 @@ export default function sketch(s) {
     i += 1
 
     if (epoch > hidden - 1) {
-      population.agents.sort((a, b) => a.nn.prevScore > b.nn.prevScore ? -1 : 0)
+      population.agents.sort((a, b) => (a.nnLeft.prevScore > b.nnLeft.prevScore && a.nnRight.prevScore > b.nnRight.prevScore) ? -1 : 0)
       const a = population.agents[0]
       renderHand(s, a.handLeft, a.handRadius)
       renderHand(s, a.handRight, a.handRadius)
