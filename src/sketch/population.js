@@ -3,7 +3,7 @@ import Network from "neataptic/src/architecture/network";
 import { Agent } from "./agent";
 
 function getNN(sketch) {
-    const nn = new Perceptron(2, 3, 3)
+    const nn = new Perceptron(4, 4, 3)
     nn.connections.map(c => c.weight = sketch.random(-1, 1))
     nn.score = 0
     nn.prevScore = 0

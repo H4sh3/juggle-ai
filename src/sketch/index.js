@@ -20,6 +20,12 @@ export default function sketch(s) {
   let epoch = 0
   let ITERATIONS = 1000
 
+  const button = s.createButton('reset epoch');
+  button.position(0, 0);
+  button.mousePressed(() => {
+    epoch = 0
+  })
+
   const population = new Population(100, s)
 
   s.setup = () => {
@@ -27,7 +33,7 @@ export default function sketch(s) {
     backgroundColor = s.color(s.random(255), s.random(255), s.random(255));
   };
 
-  const hidden = 1000
+  const hidden = 100
 
   s.draw = () => {
     s.background(120, 120, 120, 30);
