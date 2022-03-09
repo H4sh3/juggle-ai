@@ -13,7 +13,8 @@ const getBall = (pos, s) => {
         vel: s.createVector(0, 0),
         wasLeft: false,
         wasRight: false,
-        radius: 20
+        radius: 20,
+        dropped: false
     }
 }
 
@@ -53,30 +54,32 @@ export class Agent {
             }
         }
 
-        this.balls.map(ball => {
-            if (!this.ballDropped) {
-                this.ballDropped = !inView(ball.pos)
-            } else {
-                return
-            }
+        this.balls.filter(b => !b.dropped).map(ball => {
+            ball.dropped = !inView(ball.pos)
+            //if (!this.ballDropped) {
+            //    this.ballDropped = !inView(ball.pos)
+            //} else {
+            //    return
+            //}
 
             const ballFalls = ball.vel.y > 0
 
-            const accRangeX = 4.5
-            const accRangeY = -5.5
+            const accRangeX = 1.5
+            const accRangeY = -2.5
 
-            const ballVelMag = s.map(ball.vel.mag(), 0, 5, 0, 1)
+            const ballVelX = s.map(ball.vel.x, -10, 10, 0, 1)
+            const ballVelY = s.map(ball.vel.y, -10, 10, 0, 1)
 
             ball.acc = s.createVector(0, 0)
 
             const distLeft = ball.pos.dist(this.handLeft)
             if (distLeft < this.handRadius / 2) {
 
-                //const ballTransformed = ball.pos.copy().sub(this.handLeft)
+                const ballTransformed = ball.pos.copy().sub(this.handLeft)
                 // method 1
-                //const mappedX = s.map(ballTransformed.x, 0, this.handRadius, 0, 1)
-                //const mappedY = s.map(ballTransformed.y, 0, this.handRadius, 0, 1)
-                //var output = this.nn.activate([mappedX, mappedY, 0, ballFalls, ballVelMag]);
+                const mappedX = s.map(ballTransformed.x, 0, this.handRadius, 0, 1)
+                const mappedY = s.map(ballTransformed.y, 0, this.handRadius, 0, 1)
+                var output = this.nnLeft.activate([mappedX, mappedY, ballVelX, ballVelY]);
 
                 // methode 2
                 //const angle = calcAngle(ballTransformed, { x: 0, y: 0 }, s)
@@ -85,10 +88,10 @@ export class Agent {
                 //const mappedDist = s.map(dist, 0, this.handRadius / 2, 0, 1)
                 //var output = this.nnLeft.activate([mappedAngle, mappedDist, ballFalls, ballVelMag]);
 
-                const ballVel = ball.vel.normalize()
-                const velX = s.map(ballVel.x, -1, 1, 0, 1)
-                const velY = s.map(ballVel.y, -1, 1, 0, 1)
-                var output = this.nnLeft.activate([velX, velY]);
+                //const ballVel = ball.vel.normalize()
+                //const velX = s.map(ballVel.x, -1, 1, 0, 1)
+                //const velY = s.map(ballVel.y, -1, 1, 0, 1)
+                //var output = this.nnLeft.activate([velX, velY]);
 
                 const accX = s.map(output[0], 0, 1, 0, accRangeX)
                 const accY = s.map(output[1], 0, 1, 0, accRangeY)
@@ -106,11 +109,11 @@ export class Agent {
             const distRight = ball.pos.dist(this.handRight)
             if (distRight < this.handRadius / 2) {
 
-                //const ballTransformed = ball.pos.copy().sub(this.handRight)
+                const ballTransformed = ball.pos.copy().sub(this.handRight)
                 // method 1
-                //const mappedX = s.map(ballTransformed.x, 0, this.handRadius, 0, 1)
-                //const mappedY = s.map(ballTransformed.y, 0, this.handRadius, 0, 1)
-                //var output = this.nn.activate([mappedX, mappedY, 1, ballFalls, ballVelMag]);
+                const mappedX = s.map(ballTransformed.x, 0, this.handRadius, 0, 1)
+                const mappedY = s.map(ballTransformed.y, 0, this.handRadius, 0, 1)
+                var output = this.nnRight.activate([mappedX, mappedY, ballVelX, ballVelY]);
 
                 // methode 2
                 //const angle = calcAngle(ballTransformed, { x: 0, y: 0 }, s)
@@ -119,10 +122,10 @@ export class Agent {
                 //const mappedDist = s.map(dist, 0, this.handRadius / 2, 0, 1)
                 //var output = this.nnRight.activate([mappedAngle, mappedDist, ballFalls, ballVelMag]);
 
-                const ballVel = ball.vel.normalize()
-                const velX = s.map(ballVel.x, -1, 1, 0, 1)
-                const velY = s.map(ballVel.y, -1, 1, 0, 1)
-                var output = this.nnRight.activate([velX, velY]);
+                //const ballVel = ball.vel.normalize()
+                //const velX = s.map(ballVel.x, -1, 1, 0, 1)
+                //const velY = s.map(ballVel.y, -1, 1, 0, 1)
+                //var output = this.nnRight.activate([velX, velY]);
 
                 const accX = s.map(output[0], 0, 1, 0, -accRangeX)
                 const accY = s.map(output[1], 0, 1, 0, accRangeY)
