@@ -9,16 +9,13 @@ export const inView = (pos) => {
     pos.x < width
 }
 
-const allDropped = (agents) => {
-  return agents.find(a => !a.ballDropped) == undefined
-}
-
 export default function sketch(s) {
   let backgroundColor;
 
   let i = 0
   let epoch = 0
-  let ITERATIONS = 1000
+  let MAX_ITERATIONS = 1000
+  let endlessTrain = true
 
   const button = s.createButton('reset epoch');
   button.position(0, 0);
@@ -26,52 +23,64 @@ export default function sketch(s) {
     epoch = 0
   })
 
-  const population = new Population(100, s)
+  const button2 = s.createButton('endless train');
+  button2.position(0, 150);
+  button2.mousePressed(() => {
+    endlessTrain = !endlessTrain
+  })
+
+  const population = new Population(10, s)
 
   s.setup = () => {
     s.createCanvas(width, height);
     backgroundColor = s.color(s.random(255), s.random(255), s.random(255));
   };
 
-  const hidden = 100
-
   s.draw = () => {
     s.background(120, 120, 120, 30);
+    while (endlessTrain) {
 
-    while (epoch < hidden) {
-      if (i == ITERATIONS || allDropped(population.agents)) {
-        population.evaluate(s)
+      if (i == MAX_ITERATIONS || population.agent.ballsDropped()) {
+        population.data.push({
+          score: population.agent.nn.score,
+          data: population.agent.data
+        })
+
+        if (epoch % 100 == 0) {
+          console.log("training")
+          population.train(s)
+
+          //eval
+          i = 0
+          while (i < MAX_ITERATIONS && !population.agent.ballsDropped()) {
+            population.agent.update(s, false)
+          }
+          console.log(`Eval: ${population.agent.nn.score}`)
+          population.reset(s)
+        }
         i = 0
         epoch += 1
+        break
       }
 
-      population.agents.forEach(a => a.update(s))
+      population.agent.update(s, true)
       i += 1
     }
 
-    if (i == ITERATIONS || allDropped(population.agents)) {
-      population.evaluate(s)
+    if (i == MAX_ITERATIONS || population.agent.ballsDropped()) {
+      //population.train(s)
+      population.reset(s)
       i = 0
-      epoch += 1
+      //epoch += 1
     }
-    population.agents.forEach(a => a.update(s))
+    population.agent.update(s, false)
     i += 1
 
-    if (epoch > hidden - 1) {
-      population.agents.sort((a, b) => (a.nnLeft.prevScore > b.nnLeft.prevScore && a.nnRight.prevScore > b.nnRight.prevScore) ? -1 : 0)
-      const a = population.agents[0]
-      renderHand(s, a.handLeft, a.handRadius)
-      renderHand(s, a.handRight, a.handRadius)
-      a.balls.forEach(b => renderBall(s, b))
+    renderHand(s, population.agent.handLeft, population.agent.handRadius)
+    renderHand(s, population.agent.handRight, population.agent.handRadius)
+    population.agent.balls.forEach(b => renderBall(s, b))
 
-      //population.agents.forEach(a => {
-      //  renderHand(s, a.handLeft, a.handRadius)
-      //  renderHand(s, a.handRight, a.handRadius)
-      //})
-      //population.agents.forEach(a => {
-      //  a.balls.forEach(b => renderBall(s, b))
-      //})
-    }
+
   };
 }
 
@@ -85,4 +94,14 @@ const renderBall = (s, ball) => {
   s.ellipse(ball.pos.x, ball.pos.y, ball.radius, ball.radius)
 }
 
-// https://github.com/wagenaartje/target-seeking-ai/blob/master/js/player.js
+const drawError = (s, error) => {
+  let prev = error[0]
+  s.push()
+  s.translate(150, 150)
+  for (let i = 1; i < error.length; i++) {
+    const current = error[i]
+    s.line(i - 1, prev, i, current)
+    prev = current
+  }
+  s.pop()
+}
