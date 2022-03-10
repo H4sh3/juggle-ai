@@ -1,4 +1,6 @@
 
+import Network from 'neataptic/src/architecture/network';
+import { Agent } from './agent';
 import { height, width } from './config';
 import { Population } from './population';
 
@@ -24,12 +26,23 @@ export default function sketch(s) {
   })
 
   const button2 = s.createButton('endless train');
-  button2.position(0, 150);
+  button2.position(0, 25);
   button2.mousePressed(() => {
     endlessTrain = !endlessTrain
+
+    if (!endlessTrain) {
+      i = 0
+      population.runBest(s)
+    }
+  })
+
+  const button3 = s.createButton('best model');
+  button3.position(0, 50);
+  button3.mousePressed(() => {
   })
 
   const population = new Population(10, s)
+  population.bestScore = 0
 
   s.setup = () => {
     s.createCanvas(width, height);
@@ -40,31 +53,42 @@ export default function sketch(s) {
     s.background(120, 120, 120, 30);
     while (endlessTrain) {
 
-      if (i == MAX_ITERATIONS || population.agent.ballsDropped()) {
-        population.data.push({
-          score: population.agent.nn.score,
-          data: population.agent.data
-        })
+      if (epoch % 100 == 0) {
+        population.train(s)
 
-        if (epoch % 100 == 0) {
-          console.log("training")
-          population.train(s)
-
-          //eval
-          i = 0
-          while (i < MAX_ITERATIONS && !population.agent.ballsDropped()) {
-            population.agent.update(s, false)
-          }
-          console.log(`Eval: ${population.agent.nn.score}`)
-          population.reset(s)
-        }
+        //eval
         i = 0
-        epoch += 1
-        break
+        while (i < MAX_ITERATIONS && !population.agent.ballsDropped() && !population.agent.ballCollision) {
+          population.agent.update(s, false)
+          i += 1
+        }
+
+        const bestScore = population.agent.nn.score
+
+        if (bestScore > population.bestScore) {
+          population.bestScore = bestScore
+          population.bestAgent = new Agent(s, Network.fromJSON(population.agent.nn.toJSON()))
+          console.log(`Score ${population.bestAgent.nn.score}`)
+        } else {
+          population.agent = new Agent(s, Network.fromJSON(population.bestAgent.nn.toJSON()))
+        }
+
+        console.log(`Eval: ${population.agent.nn.score} Best: ${population.bestScore}`)
+        population.reset(s)
       }
 
-      population.agent.update(s, true)
-      i += 1
+      i = 0
+      while (i < MAX_ITERATIONS && !population.agent.ballsDropped() && !population.agent.ballCollision) {
+        population.agent.update(s, true)
+        i += 1
+      }
+      population.data.push({
+        score: population.agent.nn.score,
+        data: population.agent.data
+      })
+      population.reset(s)
+      epoch += 1
+      break
     }
 
     if (i == MAX_ITERATIONS || population.agent.ballsDropped()) {
@@ -80,8 +104,9 @@ export default function sketch(s) {
     renderHand(s, population.agent.handRight, population.agent.handRadius)
     population.agent.balls.forEach(b => renderBall(s, b))
 
-
-  };
+    s.fill(0)
+    s.text(population.agent.nn.score, 150, 150)
+  }
 }
 
 const renderHand = (s, hand, radius) => {
