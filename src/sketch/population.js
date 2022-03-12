@@ -3,7 +3,7 @@ import Network from "neataptic/src/architecture/network";
 import { Agent } from "./agent";
 
 function getNN(sketch) {
-    const nn = new Perceptron(5, 4, 4, 2)
+    const nn = new Perceptron(10, 15, 9)
     //nn.connections.map(c => c.weight = sketch.random(-1, 1))
     nn.score = 0
     nn.prevScore = 0
@@ -19,7 +19,7 @@ export class Population {
         this.bestExpScore = 0
         this.bestScore = -1
 
-        this.data = []
+        this.explorationData = []
         this.trainingsData = []
 
         this.bestAgent = new Agent(sketch, Network.fromJSON(this.agent.nn.toJSON()))
@@ -27,7 +27,7 @@ export class Population {
 
     train(sketch) {
         const distrib = {}
-        this.data.forEach(d => {
+        this.explorationData.forEach(d => {
             if (d.score in distrib) {
                 distrib[d.score] += 1
             } else {
@@ -35,14 +35,14 @@ export class Population {
             }
         })
         console.log(distrib)
-        console.log(this.data.length)
-        const best = this.data.reduce((acc, e) => e.score > acc ? e.score : acc, -1)
+        console.log(this.explorationData.length)
+        const best = this.explorationData.reduce((acc, e) => e.score > acc ? e.score : acc, -1)
         //console.log({ best })
 
         // better exploration
-        if (best > 0 && best > this.bestExpScore) {
-            //this.trainingsData = this.trainingsData.concat(this.data.find(entry => entry.score == best).data)
-            this.trainingsData = this.data.find(entry => entry.score == best).data
+        if (best > 0 && best >= this.bestExpScore) {
+            //this.trainingsData = this.trainingsData.concat(this.explorationData.find(entry => entry.score == best).data)
+            this.trainingsData = this.explorationData.find(entry => entry.score == best).data
             this.bestExpScore = best
             console.log(`TD length: ${this.trainingsData.length}`)
             //this.bestScore = best
@@ -61,10 +61,12 @@ export class Population {
                 //batchSize: Math.ceil(this.trainingsData / 10),
                 //momentum: 0.9
             }
-            const before = this.agent.nn.activate(this.trainingsData[0].input)
-            const target = this.trainingsData[0].output
-            this.agent.nn.train(this.trainingsData, options)
-            const after = this.agent.nn.activate(this.trainingsData[0].input)
+            const before = this.agent.nn.activate(this.trainingsData[0][0].input)
+            const target = this.trainingsData[0][0].output
+            const alldata = this.trainingsData.reduce((acc, e) => { return [...acc, ...e] }, [])
+            console.log(alldata)
+            this.agent.nn.train(alldata, options)
+            const after = this.agent.nn.activate(this.trainingsData[0][0].input)
             //console.log(`Before ${before}`)
             //console.log(`Target ${target}`)
             //console.log(`After ${after}`)
@@ -72,7 +74,7 @@ export class Population {
 
         this.reset(sketch)
 
-        this.data = []
+        this.explorationData = []
     }
 
     runBest(s) {
