@@ -21,26 +21,21 @@ export default function sketch(s) {
   let endlessRun = false
 
   const button = s.createButton('reset epoch');
-  button.position(0, 0);
+  button.position(10, 10);
   button.mousePressed(() => {
     epoch = 0
   })
 
   const button2 = s.createButton('endless train');
-  button2.position(0, 25);
+  button2.position(10, 35);
   button2.mousePressed(() => {
     endlessTrain = !endlessTrain
 
-    if (!endlessTrain) {
+    endlessRun = !endlessTrain
+    if (endlessRun) {
       i = 0
       population.runBest(s)
     }
-  })
-
-  const button3 = s.createButton('run endless');
-  button3.position(0, 50);
-  button3.mousePressed(() => {
-    endlessRun = !endlessRun
   })
 
   const population = new Population(10, s)
@@ -58,7 +53,7 @@ export default function sketch(s) {
     while (i < MAX_ITERATIONS + population.bestScore * 100) {
       population.agent.update(s, -1, i) // no random actions
 
-      if (population.agent.ballsDropped() || population.agent.ballCollision) {
+      if (population.agent.ballDropped() || population.agent.ballCollision) {
         break
       }
 
@@ -69,7 +64,7 @@ export default function sketch(s) {
 
 
   s.draw = () => {
-    s.background(220, 220, 220, 30);
+    s.background(130, 130, 130, 30);
     renderArea(s, population.agent.areasLeft)
     renderArea(s, population.agent.areasRight)
     while (endlessTrain && population.bestScore < 100) {
@@ -83,14 +78,14 @@ export default function sketch(s) {
 
         console.log(`Eval: ${score} Best: ${population.bestScore} BestExpl: ${population.bestExpScore}`)
         if (score >= population.bestScore) {
-          // trained agent performces better -> use it for future epochs
+          // trained agent performced better -> use it for future epochs
           population.bestScore = score
-          population.bestAgent = new Agent(s, Network.fromJSON(population.agent.nn.toJSON()))
-          population.bestAgent.spawnPositions = population.spawnPositions.map(p => p.copy())
-          console.log(`Score ${population.bestAgent.nn.score}`)
+          console.log(`Score ${score}`)
+          population.bestAgent.nn = Network.fromJSON(population.agent.nn.toJSON())
+          population.bestAgent.init()
         } else {
-          population.agent = new Agent(s, Network.fromJSON(population.bestAgent.nn.toJSON()))
-          population.agent.spawnPositions = population.spawnPositions.map(p => p.copy())
+          population.agent.nn = Network.fromJSON(population.bestAgent.nn.toJSON())
+          population.agent.init()
         }
 
         population.reset(s)
@@ -98,7 +93,7 @@ export default function sketch(s) {
       }
 
       i = 0
-      while (i < (MAX_ITERATIONS + population.bestScore * 100) && !population.agent.ballsDropped() && !population.agent.ballCollision) {
+      while (i < (MAX_ITERATIONS + population.bestScore * 100) && !population.agent.ballDropped() && !population.agent.ballCollision) {
         let rate = s.map(epoch, 1, MAX_ITERATIONS + population.bestScore * 100, 0.1, 0.6)
         population.agent.update(s, rate, i)
         i += 1
@@ -114,50 +109,33 @@ export default function sketch(s) {
       break
     }
 
+    if (!endlessTrain) {
+      if ((i == MAX_ITERATIONS && !endlessRun) || population.agent.ballDropped() || population.agent.ballCollision) {
+        population.reset(s)
+        i = 0
+      }
+      population.agent.update(s, false, i)
+      i += 1
 
-    if ((i == MAX_ITERATIONS && !endlessRun) || population.agent.ballsDropped() || population.agent.ballCollision) {
-      //population.train(s)
-      population.reset(s)
-      i = 0
-      //epoch += 1
+      population.agent.balls.forEach((b, i) => renderBall(s, b, i))
     }
-    population.agent.update(s, false, i)
-    i += 1
-
-    //renderHand(s, population.agent.handLeft, population.agent.handRadius)
-    //renderHand(s, population.agent.handRight, population.agent.handRadius)
-    population.agent.balls.forEach((b, i) => renderBall(s, b, i))
 
     s.fill(0)
-    s.text(population.agent.nn.score, 150, 150)
+    s.text(`Score: ${population.agent.nn.score}`, width - 70, 16)
+    s.text(`Best: ${population.bestScore}`, width - 70, 32)
   }
 }
 
+const colorDict = {
+  0: (s) => { s.fill(255, 0, 0) },
+  1: (s) => { s.fill(0, 255, 0) },
+  2: (s) => { s.fill(0, 0, 255) }
+}
 
 const renderBall = (s, ball, i) => {
-  if (i === 0) {
-    s.fill(255, 0, 0)
-  }
-  if (i === 1) {
-    s.fill(0, 255, 0)
-  }
-  if (i === 2) {
-    s.fill(0, 0, 255)
-  }
+  colorDict[i](s)
   s.noStroke()
   s.ellipse(ball.pos.x, ball.pos.y, ball.radius, ball.radius)
-}
-
-const drawError = (s, error) => {
-  let prev = error[0]
-  s.push()
-  s.translate(150, 150)
-  for (let i = 1; i < error.length; i++) {
-    const current = error[i]
-    s.line(i - 1, prev, i, current)
-    prev = current
-  }
-  s.pop()
 }
 
 const renderArea = (s, areas) => {

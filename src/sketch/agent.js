@@ -65,9 +65,7 @@ const getAngle = (s, x, vel) => {
 
         const v2 = 2 * Math.pow(v0, 2) * Math.pow(Math.cos(s.radians(angle)), 2)
 
-        let y = (x * s.tan(s.radians(angle))) - (v1 / v2)
-        y *= -1
-
+        const y = ((x * s.tan(s.radians(angle))) - (v1 / v2)) * -1
 
         const actual = s.createVector(x, y)
 
@@ -82,9 +80,67 @@ const getAngle = (s, x, vel) => {
     return bestAngle
 }
 
+const getRotationDict = (s, areasLeft, areasRight) => {
+    const rotationDict = {}
+    const addEntries = (vel) => {
+        for (let i = 0; i < areasLeft.length; i++) {
+            let start = areasLeft[i]
+            for (let j = 0; j < areasRight.length; j++) {
+                let target = areasRight[j]
+
+                const angle = getAngle(s, target.x - start.x, vel)
+                rotationDict[getKey(i, j, vel.y)] = {
+                    vel,
+                    angle
+                }
+            }
+        }
+    }
+    addEntries(s.createVector(0, -6))
+    addEntries(s.createVector(0, -8))
+    return rotationDict
+}
+
 export const getKey = (s, t, v) => {
     return `s-${s}#t-${t}#v-${v}`
 }
+
+const isPointInRect = (pos, center, widthHalf) => {
+    const minX = center.x - widthHalf
+    const maxX = center.x + widthHalf
+    const minY = center.y - 10
+    const maxY = center.y + 10
+    return (
+        pos.x > minX &&
+        pos.x < maxX &&
+        pos.y > minY &&
+        pos.y < maxY
+    )
+}
+
+const getInput = (ball, areas) => {
+
+    let minDist = Infinity
+    let minDistAreaIndex
+    for (let i = 0; i < areas.length; i++) {
+        const dist = areas[i].dist(ball.pos)
+        if (dist < minDist) {
+            minDist = dist
+            minDistAreaIndex = i
+        }
+    }
+
+    let inputs = []
+    for (let i = 0; i < areas.length; i++) {
+        if (i == minDistAreaIndex) {
+            inputs.push(1)
+        } else {
+            inputs.push(0)
+        }
+    }
+    return inputs
+}
+
 export class Agent {
     constructor(s, nn) {
         this.nn = nn
@@ -94,93 +150,29 @@ export class Agent {
         this.rightCenter = s.createVector(width - 100, height - 150)
         this.areasLeft = getAreas(s, this.leftCenter, this.areaWidth)
         this.areasRight = getAreas(s, this.rightCenter, this.areaWidth)
-        this.rotationDict = {}
-
-
-        let vel = s.createVector(0, -6)
-        for (let i = 0; i < this.areasLeft.length; i++) {
-            let start = this.areasLeft[i]
-            for (let j = 0; j < this.areasRight.length; j++) {
-                let target = this.areasRight[j]
-
-                const angle = getAngle(s, target.x - start.x, vel)
-                this.rotationDict[getKey(i, j, vel.y)] = {
-                    vel,
-                    angle
-                }
-            }
-        }
-
-        vel = s.createVector(0, -8)
-        for (let i = 0; i < this.areasLeft.length; i++) {
-            let start = this.areasLeft[i]
-            for (let j = 0; j < this.areasRight.length; j++) {
-                let target = this.areasRight[j]
-
-                const angle = getAngle(s, target.x - start.x, vel)
-                this.rotationDict[getKey(i, j, vel.y)] = {
-                    vel,
-                    angle
-                }
-            }
-        }
-
-        this.initPosEtc(s)
+        this.rotationDict = getRotationDict(s, this.areasLeft, this.areasRight)
+        this.init(s)
     }
 
     getBallSpawn(s, hand) {
-        const xOffset = s.createVector(s.random(-25, 25), 0)
-        return s.createVector(hand.x, 150)//.add(xOffset)
+        return s.createVector(hand.x, 150)
     }
 
-    initPosEtc(s) {
+    init() {
         this.ballCollision = false
         this.tmpData = []
         this.data = []
         this.balls = []
     }
 
-    score() {
-        return this.nn.score
-    }
 
-    getInput(s, ball, areas, i) {
 
-        let minDist = Infinity
-        let minDistAreaIndex
-        for (let i = 0; i < areas.length; i++) {
-            const dist = areas[i].dist(ball.pos)
-            if (dist < minDist) {
-                minDist = dist
-                minDistAreaIndex = i
-            }
-        }
-
-        let inputs = []
-        for (let i = 0; i < areas.length; i++) {
-            if (i == minDistAreaIndex) {
-                inputs.push(1)
-            } else {
-                inputs.push(0)
-            }
-        }
-        return inputs
-    }
-
-    ballsDropped() {
+    ballDropped() {
         return this.balls.some(b => b.dropped)
     }
 
     handleSpawn(s, i) {
-        /*         if (i == 0) {
-                    this.balls.push(getBall(this.getBallSpawn(s, this.leftCenter.copy().add(s.createVector(65, 0))), s))
-                }
-                if (i == 25) {
-                    this.balls.push(getBall(this.getBallSpawn(s, this.rightCenter.copy().add(s.createVector(65, 0))), s))
-                }
-                if (i == 50) {
-                    this.balls.push(getBall(this.getBallSpawn(s, this.leftCenter.copy().add(s.createVector(65, 0))), s))
-                } */
+        // spawn balls time delayed / different iterations
         if (i == 0) {
             this.balls.push(getBall(this.spawnPositions[0].copy(), s))
         }
@@ -189,6 +181,9 @@ export class Agent {
         }
         if (i == 15) {
             this.balls.push(getBall(this.spawnPositions[2].copy(), s))
+        }
+        if (false && i == 20) {
+            this.balls.push(getBall(this.spawnPositions[0].copy(), s))
         }
     }
 
@@ -208,36 +203,15 @@ export class Agent {
         this.handleSpawn(s, i)
         this.checkCollision()
 
-        if (this.ballCollision) return
+        if (this.ballCollision || this.ballDropped()) return
 
-
+        const widthHalf = this.areaWidth / 2
         const isLeft = (pos) => {
-            const widthHalf = this.areaWidth / 2
-            const minX = this.leftCenter.x - widthHalf
-            const maxX = this.leftCenter.x + widthHalf
-            const minY = this.leftCenter.y - (this.areaWidth / 8) / 2
-            const maxY = this.leftCenter.y + (this.areaWidth / 8) / 2
-            return (
-                pos.x > minX &&
-                pos.x < maxX &&
-                pos.y > minY &&
-                pos.y < maxY
-            )
+            return isPointInRect(pos, this.leftCenter, widthHalf)
         }
 
         const isRight = (pos) => {
-            const widthHalf = this.areaWidth / 2
-            const minX = this.rightCenter.x - widthHalf
-            const maxX = this.rightCenter.x + widthHalf
-            const minY = this.rightCenter.y - (this.areaWidth / 8) / 2
-            const maxY = this.rightCenter.y + (this.areaWidth / 8) / 2
-
-            return (
-                pos.x > minX &&
-                pos.y > minY &&
-                pos.x < maxX &&
-                pos.y < maxY
-            )
+            return isPointInRect(pos, this.rightCenter, widthHalf)
         }
 
 
@@ -265,42 +239,48 @@ export class Agent {
                 return output
             }
 
-            if (isLeft(ball.pos)) {
+            const handleBallInArea = (area, mirror) => {
+                let input = getInput(ball, area)
 
-                if (ball.wasRight) {
+                const start = getStart(input)
+                ball.pos = area[start].copy()
+
+                input.push(-1)
+                input.push(1)
+
+                const output = getOutputs(input)
+                const target = getTarget(output)
+
+                let key;
+                if (mirror) {
+                    key = getKey(NUM_AREAS - 1 - start, NUM_AREAS - 1 - target, output[output.length - 1] > 0 ? -6 : -8)
+                } else {
+                    key = getKey(start, target, output[output.length - 1] > 0 ? -6 : -8)
+                }
+                const entry = this.rotationDict[key]
+
+                ball.vel = entry.vel.copy().rotate(s.radians(entry.angle * (mirror ? -1 : 1)))
+                ball.data.push({ input, output })
+            }
+
+            const handleScore = (side) => {
+                if (ball[side]) {
                     // data inside ball resulted in this hit
                     this.data.push(ball.data)
                     ball.data = []
                     ball.hit = false
-                    ball.wasRight = false
+                    ball[side] = false
                     this.nn.score += 1
                 }
+            }
+
+            if (isLeft(ball.pos)) {
+                handleScore("wasRight")
 
                 if (!ball.wasLeft) {
-                    ball.vel.x = 0
-                    ball.vel.y = 0
-                    let input = this.getInput(s, ball, this.areasLeft, i)
-                    const start = getStart(input)
-                    ball.pos = this.areasLeft[start].copy()
-
-                    input.push(-1)
-                    input.push(1)
-
-                    const output = getOutputs(input)
-                    //console.log(output)
-
-                    const target = getTarget(output)
-                    const key = getKey(start, target, output[output.length - 1] > .5 ? -6 : -8)
-
-                    const entry = this.rotationDict[key]
-                    ball.vel = entry.vel.copy().rotate(s.radians(entry.angle))
-
-                    ball.data.push({ input, output })
-
-                    ball.active = true
-                    //ball.acc.add(outputToAcc(s, i, output))
-
                     ball.wasLeft = true
+                    // only once acceleration per contact
+                    handleBallInArea(this.areasLeft, false)
                 }
 
             } else {
@@ -308,35 +288,12 @@ export class Agent {
             }
 
             if (isRight(ball.pos)) {
-                if (ball.wasLeft) {
-                    // data inside ball resulted in this hit
-                    this.data.push(ball.data)
-                    ball.data = []
-                    ball.hit = false
-                    ball.wasLeft = false
-                    this.nn.score += 1
-                }
+                handleScore("wasLeft")
 
-                if (!ball.wasRight) { // only once acceleration per contact
-                    let input = this.getInput(s, ball, this.areasRight, i)
-
-                    const start = getStart(input)
-                    ball.pos = this.areasRight[start].copy()
-
-                    input.push(-1)
-                    input.push(1)
-
-                    const output = getOutputs(input)
-
-                    const target = getTarget(output)
-                    const key = getKey(NUM_AREAS - 1 - start, NUM_AREAS - 1 - target, output[output.length - 1] > 0 ? -6 : -8)
-                    const entry = this.rotationDict[key]
-
-                    ball.vel = entry.vel.copy().rotate(s.radians(-entry.angle))
-                    ball.data.push({ input, output })
-
-
+                if (!ball.wasRight) {
                     ball.wasRight = true
+                    // only once acceleration per contact
+                    handleBallInArea(this.areasRight, true)
                 }
             }
 
