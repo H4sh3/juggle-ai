@@ -1,9 +1,10 @@
 import { Perceptron } from "neataptic/src/architecture/architect";
 import Network from "neataptic/src/architecture/network";
 import { Agent } from "./agent";
+import { NUM_AREAS } from "./config";
 
 function getNN(sketch) {
-    const nn = new Perceptron(10, 15, 9)
+    const nn = new Perceptron(NUM_AREAS + 2, 15, NUM_AREAS + 1)
     //nn.connections.map(c => c.weight = sketch.random(-1, 1))
     nn.score = 0
     nn.prevScore = 0
@@ -12,17 +13,27 @@ function getNN(sketch) {
 
 
 export class Population {
-    constructor(popSize, sketch) {
+    constructor(popSize, s) {
         this.popSize = popSize
         this.generation = 0
-        this.agent = new Agent(sketch, getNN(sketch))
+        this.agent = new Agent(s, getNN(s))
         this.bestExpScore = 0
         this.bestScore = -1
 
         this.explorationData = []
         this.trainingsData = []
 
-        this.bestAgent = new Agent(sketch, Network.fromJSON(this.agent.nn.toJSON()))
+
+
+        this.spawnPositions = [
+            this.agent.areasLeft[Math.floor(this.agent.areasLeft.length / 2)],
+            this.agent.areasLeft[0].copy().sub(s.createVector(0, 75)),
+            this.agent.areasLeft[this.agent.areasLeft.length - 1].copy().sub(s.createVector(0, 75)),
+        ]
+
+        this.bestAgent = new Agent(s, Network.fromJSON(this.agent.nn.toJSON()))
+        this.bestAgent = this.spawnPositions.map(p => p.copy())
+        this.agent.spawnPositions = this.spawnPositions.map(p => p.copy())
     }
 
     train(sketch) {
@@ -75,15 +86,18 @@ export class Population {
         this.reset(sketch)
 
         this.explorationData = []
+
     }
 
     runBest(s) {
         this.agent = new Agent(s, Network.fromJSON(this.bestAgent.nn.toJSON()))
+        this.agent.spawnPositions = this.spawnPositions.map(p => p.copy())
     }
 
     reset(sketch) {
         this.agent.nn.score = 0
         this.agent.initPosEtc(sketch)
+        this.agent.spawnPositions = this.spawnPositions
     }
 
     evaluate(sketch) {

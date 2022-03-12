@@ -70,7 +70,9 @@ export default function sketch(s) {
 
   s.draw = () => {
     s.background(220, 220, 220, 30);
-    while (endlessTrain) {
+    renderArea(s, population.agent.areasLeft)
+    renderArea(s, population.agent.areasRight)
+    while (endlessTrain && population.bestScore < 100) {
       population.reset(s)
 
       if (epoch == 100) {
@@ -84,9 +86,11 @@ export default function sketch(s) {
           // trained agent performces better -> use it for future epochs
           population.bestScore = score
           population.bestAgent = new Agent(s, Network.fromJSON(population.agent.nn.toJSON()))
+          population.bestAgent.spawnPositions = population.spawnPositions.map(p => p.copy())
           console.log(`Score ${population.bestAgent.nn.score}`)
         } else {
           population.agent = new Agent(s, Network.fromJSON(population.bestAgent.nn.toJSON()))
+          population.agent.spawnPositions = population.spawnPositions.map(p => p.copy())
         }
 
         population.reset(s)
@@ -106,11 +110,12 @@ export default function sketch(s) {
       })
 
       epoch += 1
+      s.background(220, 220, 220);
       break
     }
 
 
-    if ((i == MAX_ITERATIONS && !endlessRun) || population.agent.ballsDropped()) {
+    if ((i == MAX_ITERATIONS && !endlessRun) || population.agent.ballsDropped() || population.agent.ballCollision) {
       //population.train(s)
       population.reset(s)
       i = 0
@@ -121,25 +126,25 @@ export default function sketch(s) {
 
     //renderHand(s, population.agent.handLeft, population.agent.handRadius)
     //renderHand(s, population.agent.handRight, population.agent.handRadius)
-    population.agent.balls.forEach(b => renderBall(s, b))
+    population.agent.balls.forEach((b, i) => renderBall(s, b, i))
 
     s.fill(0)
     s.text(population.agent.nn.score, 150, 150)
   }
 }
 
-const renderHand = (s, hand, radius) => {
-  s.fill(255)
-  s.ellipse(hand.x, hand.y, radius, radius)
-}
 
-const renderBall = (s, ball) => {
-  if (ball.active) {
-    //s.fill(255, 0, 0)
-  } else {
+const renderBall = (s, ball, i) => {
+  if (i === 0) {
+    s.fill(255, 0, 0)
+  }
+  if (i === 1) {
+    s.fill(0, 255, 0)
+  }
+  if (i === 2) {
+    s.fill(0, 0, 255)
   }
   s.noStroke()
-  s.fill(0, 60, 255)
   s.ellipse(ball.pos.x, ball.pos.y, ball.radius, ball.radius)
 }
 

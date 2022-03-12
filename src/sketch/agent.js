@@ -42,7 +42,7 @@ const getTarget = (output) => {
 
 const getAreas = (s, center, width) => {
     const areas = []
-    const n = 8
+    const n = NUM_AREAS
     const h = Math.floor(n / 2)
     const step = width / n
     for (let i = -h; i < h; i++) {
@@ -94,8 +94,8 @@ export class Agent {
         this.rightCenter = s.createVector(width - 100, height - 150)
         this.areasLeft = getAreas(s, this.leftCenter, this.areaWidth)
         this.areasRight = getAreas(s, this.rightCenter, this.areaWidth)
-
         this.rotationDict = {}
+
 
         let vel = s.createVector(0, -6)
         for (let i = 0; i < this.areasLeft.length; i++) {
@@ -172,14 +172,23 @@ export class Agent {
     }
 
     handleSpawn(s, i) {
+        /*         if (i == 0) {
+                    this.balls.push(getBall(this.getBallSpawn(s, this.leftCenter.copy().add(s.createVector(65, 0))), s))
+                }
+                if (i == 25) {
+                    this.balls.push(getBall(this.getBallSpawn(s, this.rightCenter.copy().add(s.createVector(65, 0))), s))
+                }
+                if (i == 50) {
+                    this.balls.push(getBall(this.getBallSpawn(s, this.leftCenter.copy().add(s.createVector(65, 0))), s))
+                } */
         if (i == 0) {
-            this.balls.push(getBall(this.getBallSpawn(s, this.leftCenter.copy().add(s.createVector(65, 0))), s))
+            this.balls.push(getBall(this.spawnPositions[0].copy(), s))
         }
-        if (i == 25) {
-            this.balls.push(getBall(this.getBallSpawn(s, this.rightCenter.copy().add(s.createVector(65, 0))), s))
+        if (i == 5) {
+            this.balls.push(getBall(this.spawnPositions[1].copy(), s))
         }
-        if (i == 50) {
-            this.balls.push(getBall(this.getBallSpawn(s, this.leftCenter.copy().add(s.createVector(65, 0))), s))
+        if (i == 15) {
+            this.balls.push(getBall(this.spawnPositions[2].copy(), s))
         }
     }
 
@@ -247,7 +256,7 @@ export class Agent {
                 let output
                 if (s.random(0, 1) < exploreRate) {
                     output = []
-                    for (let i = 0; i < 9; i++) {
+                    for (let i = 0; i < NUM_AREAS + 1; i++) {
                         output.push(s.random(0, 1))
                     }
                 } else {
@@ -320,7 +329,7 @@ export class Agent {
                     const output = getOutputs(input)
 
                     const target = getTarget(output)
-                    const key = getKey(7 - start, 7 - target, output[output.length - 1] > 0 ? -6 : -8)
+                    const key = getKey(NUM_AREAS - 1 - start, NUM_AREAS - 1 - target, output[output.length - 1] > 0 ? -6 : -8)
                     const entry = this.rotationDict[key]
 
                     ball.vel = entry.vel.copy().rotate(s.radians(-entry.angle))
