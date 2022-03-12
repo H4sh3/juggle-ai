@@ -3,7 +3,7 @@ import Network from "neataptic/src/architecture/network";
 import { Agent } from "./agent";
 
 function getNN(sketch) {
-    const nn = new Perceptron(4, 12, 12, 3)
+    const nn = new Perceptron(5, 4, 4, 2)
     //nn.connections.map(c => c.weight = sketch.random(-1, 1))
     nn.score = 0
     nn.prevScore = 0
@@ -16,7 +16,7 @@ export class Population {
         this.popSize = popSize
         this.generation = 0
         this.agent = new Agent(sketch, getNN(sketch))
-        this.best = 0
+        this.bestExpScore = 0
         this.bestScore = -1
 
         this.data = []
@@ -35,35 +35,39 @@ export class Population {
             }
         })
         console.log(distrib)
+        console.log(this.data.length)
         const best = this.data.reduce((acc, e) => e.score > acc ? e.score : acc, -1)
         //console.log({ best })
 
-        if (best > 0 && best > this.bestScore) {
-            //this.agent.nn = Network.fromJSON(this.bestAgent.nn.toJSON())
-
+        // better exploration
+        if (best > 0 && best > this.bestExpScore) {
             //this.trainingsData = this.trainingsData.concat(this.data.find(entry => entry.score == best).data)
             this.trainingsData = this.data.find(entry => entry.score == best).data
+            this.bestExpScore = best
             console.log(`TD length: ${this.trainingsData.length}`)
-            this.bestScore = best
+            //this.bestScore = best
+        }
 
 
-            if (this.trainingsData.length > 0) {
-                //this.agent.nn = getNN(sketch)
-                const before = this.agent.nn.activate(this.trainingsData[0].input)
-                const options = {
-                    log: 1000,
-                    error: 0.01,
-                    iterations: 100000,
-                    rate: .3,
-                    shuffle: true,
-                    batchSize: Math.ceil(this.trainingsData / 5),
-                }
-                this.agent.nn.train(this.trainingsData, options)
-                const after = this.agent.nn.activate(this.trainingsData[0].input)
-                console.log(before)
-                console.log(after)
-                console.log(this.trainingsData[0].output)
+        if (this.trainingsData.length > 0 && this.bestScore < this.bestExpScore) {
+            console.log("Training!")
+            this.agent.nn = getNN() // Network.fromJSON(this.bestAgent.nn.toJSON()) 
+            const options = {
+                log: 1000,
+                error: 0.001,
+                iterations: 10000,
+                rate: .3,
+                //shuffle: true,
+                //batchSize: Math.ceil(this.trainingsData / 10),
+                //momentum: 0.9
             }
+            const before = this.agent.nn.activate(this.trainingsData[0].input)
+            const target = this.trainingsData[0].output
+            this.agent.nn.train(this.trainingsData, options)
+            const after = this.agent.nn.activate(this.trainingsData[0].input)
+            //console.log(`Before ${before}`)
+            //console.log(`Target ${target}`)
+            //console.log(`After ${after}`)
         }
 
         this.reset(sketch)

@@ -16,8 +16,9 @@ export default function sketch(s) {
 
   let i = 0
   let epoch = 0
-  let MAX_ITERATIONS = 1000
+  let MAX_ITERATIONS = 500
   let endlessTrain = true
+  let endlessRun = false
 
   const button = s.createButton('reset epoch');
   button.position(0, 0);
@@ -36,9 +37,10 @@ export default function sketch(s) {
     }
   })
 
-  const button3 = s.createButton('best model');
+  const button3 = s.createButton('run endless');
   button3.position(0, 50);
   button3.mousePressed(() => {
+    endlessRun = !endlessRun
   })
 
   const population = new Population(10, s)
@@ -49,49 +51,61 @@ export default function sketch(s) {
     backgroundColor = s.color(s.random(255), s.random(255), s.random(255));
   };
 
+  const runEpoch = () => {
+    population.reset(s)
+    i = 0
+    while (i < MAX_ITERATIONS + population.bestScore * 100) {
+      population.agent.update(s, -1) // no random actions
+
+      if (population.agent.ballsDropped() || population.agent.ballCollision) {
+        break
+      }
+
+      i += 1
+    }
+    return population.agent.nn.score
+  }
+
   s.draw = () => {
     s.background(120, 120, 120, 30);
     while (endlessTrain) {
+      population.reset(s)
 
-      if (epoch % 100 == 0) {
+      if (epoch == 500) {
         population.train(s)
 
-        //eval
-        i = 0
-        while (i < MAX_ITERATIONS && !population.agent.ballsDropped() && !population.agent.ballCollision) {
-          population.agent.update(s, false)
-          i += 1
-        }
+        //eval after training to see how the agent performance
+        const score = runEpoch()
 
-        const bestScore = population.agent.nn.score
-
-        if (bestScore > population.bestScore) {
-          population.bestScore = bestScore
+        console.log(`Eval: ${score} Best: ${population.bestScore} BestExpl: ${population.bestExpScore}`)
+        if (score >= population.bestScore) {
+          // trained agent performces better -> use it for future epochs
+          population.bestScore = score
           population.bestAgent = new Agent(s, Network.fromJSON(population.agent.nn.toJSON()))
           console.log(`Score ${population.bestAgent.nn.score}`)
         } else {
           population.agent = new Agent(s, Network.fromJSON(population.bestAgent.nn.toJSON()))
         }
 
-        console.log(`Eval: ${population.agent.nn.score} Best: ${population.bestScore}`)
         population.reset(s)
+        epoch = 1
       }
 
       i = 0
-      while (i < MAX_ITERATIONS && !population.agent.ballsDropped() && !population.agent.ballCollision) {
-        population.agent.update(s, true)
+      while (i < (MAX_ITERATIONS + population.bestScore * 100) && !population.agent.ballsDropped() && !population.agent.ballCollision) {
+        let rate = s.map(epoch, 1, MAX_ITERATIONS + population.bestScore * 100, 0.1, 0.6)
+        population.agent.update(s, rate)
         i += 1
       }
       population.data.push({
         score: population.agent.nn.score,
         data: population.agent.data
       })
-      population.reset(s)
       epoch += 1
       break
     }
 
-    if (i == MAX_ITERATIONS || population.agent.ballsDropped()) {
+    if ((i == MAX_ITERATIONS && !endlessRun) || population.agent.ballsDropped()) {
       //population.train(s)
       population.reset(s)
       i = 0
@@ -100,8 +114,8 @@ export default function sketch(s) {
     population.agent.update(s, false)
     i += 1
 
-    renderHand(s, population.agent.handLeft, population.agent.handRadius)
-    renderHand(s, population.agent.handRight, population.agent.handRadius)
+    //renderHand(s, population.agent.handLeft, population.agent.handRadius)
+    //renderHand(s, population.agent.handRight, population.agent.handRadius)
     population.agent.balls.forEach(b => renderBall(s, b))
 
     s.fill(0)
@@ -115,7 +129,11 @@ const renderHand = (s, hand, radius) => {
 }
 
 const renderBall = (s, ball) => {
-  s.fill(0, 255, 0)
+  if (ball.active) {
+    s.fill(255, 0, 0)
+  } else {
+    s.fill(0, 255, 0)
+  }
   s.ellipse(ball.pos.x, ball.pos.y, ball.radius, ball.radius)
 }
 
