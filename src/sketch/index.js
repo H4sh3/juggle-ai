@@ -1,7 +1,7 @@
 
 import Network from 'neataptic/src/architecture/network';
-import { Agent, getKey } from './agent';
-import { height, width } from './config';
+import { Agent, calcAngle, getBall, getKey } from './agent';
+import { GRAVITY, height, width } from './config';
 import { Population } from './population';
 
 export const inView = (pos) => {
@@ -62,11 +62,11 @@ export default function sketch(s) {
     return population.agent.nn.score
   }
 
-
   s.draw = () => {
     s.background(130, 130, 130, 30);
     renderArea(s, population.agent.areasLeft)
     renderArea(s, population.agent.areasRight)
+
     while (endlessTrain && population.bestScore < 100) {
       population.reset(s)
 

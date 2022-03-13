@@ -1,12 +1,7 @@
 import sketch, { inView } from "."
 import { GRAVITY, height, NUM_AREAS, width } from "./config"
 
-const calcAngle = (v1, v2, s) => {
-    const angleRad = Math.atan2(v1.x, v1.y) - Math.atan2(v2.x, v2.y)
-    return s.degrees(angleRad)
-}
-
-const getBall = (pos, s) => {
+export const getBall = (pos, s) => {
     return {
         pos,
         acc: s.createVector(0, 0.1),
@@ -51,58 +46,45 @@ const getAreas = (s, center, width) => {
     return areas
 }
 
-const getAngle = (s, x, vel) => {
-    let smallestDist = Infinity
-    let bestAngle
-    for (let i = 0; i < 45; i += 0.1) {
-        const target = s.createVector(x, 0)
+export const calcAngle = (s, x, vel) => {
+    const y = 0
+    const v0 = vel.mag()
 
-        const v0 = vel.mag()
-
-        const angle = i
-
-        const v1 = GRAVITY * Math.pow(x, 2)
-
-        const v2 = 2 * Math.pow(v0, 2) * Math.pow(Math.cos(s.radians(angle)), 2)
-
-        const y = ((x * s.tan(s.radians(angle))) - (v1 / v2)) * -1
-
-        const actual = s.createVector(x, y)
-
-        const dist = actual.dist(target)
-
-        if (dist < smallestDist) {
-            smallestDist = dist
-            bestAngle = angle
-        }
-
-    }
-    return bestAngle
+    const t1 = GRAVITY * Math.pow(x, 2) + 2 * Math.pow(v0, 2) * y
+    const t2 = Math.pow(v0, 4) - GRAVITY * t1
+    const t3 = Math.pow(v0, 2) + Math.sqrt(t2)
+    const t4 = t3 / (GRAVITY * x)
+    return Math.atan(t4)
 }
 
 const getRotationDict = (s, areasLeft, areasRight) => {
     const rotationDict = {}
-    const addEntries = (vel) => {
+    const addEntries = (vel, strength) => {
         for (let i = 0; i < areasLeft.length; i++) {
             let start = areasLeft[i]
             for (let j = 0; j < areasRight.length; j++) {
                 let target = areasRight[j]
 
-                const angle = getAngle(s, target.x - start.x, vel)
-                rotationDict[getKey(i, j, vel.y)] = {
-                    vel,
+                const tmpVel = vel.copy()
+                let angle = calcAngle(s, target.x - start.x, vel)
+                while (isNaN(angle)) {
+                    tmpVel.y -= 0.1
+                    angle = calcAngle(s, target.x - start.x, tmpVel)
+                }
+                rotationDict[getKey(i, j, strength)] = {
+                    vel: tmpVel,
                     angle
                 }
             }
         }
     }
-    addEntries(s.createVector(0, -6))
-    addEntries(s.createVector(0, -8))
+    addEntries(s.createVector(0, -1), 0)
+    addEntries(s.createVector(0, -8), 1)
     return rotationDict
 }
 
-export const getKey = (s, t, v) => {
-    return `s-${s}#t-${t}#v-${v}`
+export const getKey = (s, t, strength) => {
+    return `s-${s}#t-${t}#v-${strength}`
 }
 
 const isPointInRect = (pos, center, widthHalf) => {
@@ -176,10 +158,10 @@ export class Agent {
         if (i == 0) {
             this.balls.push(getBall(this.spawnPositions[0].copy(), s))
         }
-        if (i == 5) {
+        if (i == 0) {
             this.balls.push(getBall(this.spawnPositions[1].copy(), s))
         }
-        if (i == 15) {
+        if (i == 0) {
             this.balls.push(getBall(this.spawnPositions[2].copy(), s))
         }
         if (false && i == 20) {
@@ -253,13 +235,13 @@ export class Agent {
 
                 let key;
                 if (mirror) {
-                    key = getKey(NUM_AREAS - 1 - start, NUM_AREAS - 1 - target, output[output.length - 1] > 0 ? -6 : -8)
+                    key = getKey(NUM_AREAS - 1 - start, NUM_AREAS - 1 - target, output[output.length - 1] > 0 ? 0 : 1)
                 } else {
-                    key = getKey(start, target, output[output.length - 1] > 0 ? -6 : -8)
+                    key = getKey(start, target, output[output.length - 1] > 0 ? 0 : 1)
                 }
                 const entry = this.rotationDict[key]
 
-                ball.vel = entry.vel.copy().rotate(s.radians(entry.angle * (mirror ? -1 : 1)))
+                ball.vel = entry.vel.copy().rotate(entry.angle * (mirror ? -1 : 1))
                 ball.data.push({ input, output })
             }
 

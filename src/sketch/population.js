@@ -1,24 +1,34 @@
 import { Perceptron, LSTM } from "neataptic/src/architecture/architect";
 import Network from "neataptic/src/architecture/network";
 import { Agent } from "./agent";
-import { ACC_DATA, NUM_AREAS } from "./config";
+import { ACC_DATA, NUM_AREAS, USE_LSTM } from "./config";
 
 function getNN() {
-    const nn = new Perceptron(NUM_AREAS + 2, 15, NUM_AREAS + 1)
     // using lstm set clear to true in settings
-    //const nn = new LSTM(NUM_AREAS + 2, 15, NUM_AREAS + 1)
+    const input = NUM_AREAS + 2
+    const output = NUM_AREAS + 1
+    const hidden = Math.ceil(input * 2 / 3) + output
+
+    let nn;
+    if (USE_LSTM) {
+        nn = new LSTM(input, hidden, output)
+    } else {
+        nn = new Perceptron(input, hidden, output)
+    }
+    nn.isLstm = USE_LSTM
+
     nn.score = 0
+
     return nn
 }
 
 const trainigs_options = {
     log: 1000,
     error: 0.03,
-    iterations: 1000,
+    iterations: 10000,
     rate: .3,
     shuffle: true,
-    momentum: 0.9,
-    clear: false, // true when using LSTM
+    //momentum: 0.9,
 }
 
 const logScoreDistribution = (explorationData) => {
@@ -45,9 +55,11 @@ export class Population {
         this.trainingsData = []
 
         this.spawnPositions = [
-            this.agent.areasLeft[Math.floor(this.agent.areasLeft.length / 2)],
-            this.agent.areasLeft[0].copy().sub(s.createVector(0, 75)),
-            this.agent.areasLeft[this.agent.areasLeft.length - 1].copy().sub(s.createVector(0, 75)),
+            this.agent.areasLeft[Math.floor(this.agent.areasLeft.length / 2)].copy().sub(s.createVector(-65, 150)),
+            this.agent.areasLeft[Math.floor(this.agent.areasLeft.length / 2)].copy().sub(s.createVector(0, 150)),
+            this.agent.areasLeft[Math.floor(this.agent.areasLeft.length / 2)].copy().sub(s.createVector(65, 150)),
+            //this.agent.areasLeft[0].copy().sub(s.createVector(0, 150)),
+            //this.agent.areasLeft[this.agent.areasLeft.length - 1].copy().sub(s.createVector(0, 150)),
         ]
 
         this.bestAgent = new Agent(s, Network.fromJSON(this.agent.nn.toJSON()))
@@ -61,7 +73,7 @@ export class Population {
         const best = this.explorationData.reduce((acc, e) => e.score > acc ? e.score : acc, -1)
 
         // exploration data had higher score
-        if (best > 0 && best >= this.bestExpScore) {
+        if (best > 0 && best >= this.bestScore) {
             this.bestExpScore = best
             if (ACC_DATA) {
                 // accumulate data of best runs
@@ -77,7 +89,11 @@ export class Population {
             // Get a new network and train on current dataset
             this.agent.nn = getNN()
             const alldata = this.trainingsData.reduce((acc, e) => { return [...acc, ...e] }, [])
-            this.agent.nn.train(alldata, trainigs_options)
+            if (USE_LSTM) {
+                this.agent.nn.train(alldata, { ...trainigs_options, clear: true })
+            } else {
+                this.agent.nn.train(alldata, trainigs_options)
+            }
         }
 
         this.reset(sketch)
